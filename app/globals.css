@@ -1,26 +1,71 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Paleta oficial BYMA — del manual de marca */
+  --byma-cream: #efd9c6;
+  --byma-orange: #dc6e00;
+  --byma-blue: #025c98;
+  --byma-red: #921426;
+  --byma-black: #262626;
+
+  --background: var(--byma-black);
+  --foreground: var(--byma-cream);
+  --muted: rgba(239, 217, 198, 0.55);
+  --line: rgba(239, 217, 198, 0.14);
+  --accent: var(--byma-orange);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-byma-cream: var(--byma-cream);
+  --color-byma-orange: var(--byma-orange);
+  --color-byma-blue: var(--byma-blue);
+  --color-byma-red: var(--byma-red);
+  --color-byma-black: var(--byma-black);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+}
+
+html, body {
+  /* Gradient diagonal negro → azul BYMA, igual que el save-the-date */
+  background:
+    radial-gradient(ellipse 95% 70% at 5% 110%, rgba(2, 92, 152, 0.55), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 100% -10%, rgba(220, 110, 0, 0.08), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
+  color: var(--foreground);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
 }
+
+/* Display = Onest a peso heavy, letterspacing apretado — espíritu Aglet Sans */
+.font-display {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--byma-black);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 1000px var(--byma-black) inset;
+  caret-color: var(--foreground);
+}
+
