@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { BACKGROUNDS, BUCKETS, type Category } from "@/lib/categories";
 import { Sigil, Stack } from "@/components/brand";
+import { Shell } from "@/components/shell";
 import { CandidatesForm } from "./candidates-form";
 
 export default async function CategoryPage({
@@ -31,6 +32,7 @@ export default async function CategoryPage({
     .order("slot");
 
   return (
+    <Shell>
     <article>
       <header className="relative isolate overflow-hidden border-b border-line">
         <Image
@@ -109,5 +111,6 @@ export default async function CategoryPage({
         />
       </section>
     </article>
+    </Shell>
   );
 }

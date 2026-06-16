@@ -9,6 +9,7 @@ import {
   type Category,
 } from "@/lib/categories";
 import { Stack } from "@/components/brand";
+import { Shell } from "@/components/shell";
 
 export default async function HomePage() {
   const supabase = await createSupabaseServerClient();
@@ -39,6 +40,7 @@ export default async function HomePage() {
   const totalDone = cats.filter((c) => (countMap.get(c.id) ?? 0) >= 3).length;
 
   return (
+    <Shell>
     <div className="relative overflow-hidden">
       <Stack
         className="absolute -top-12 -right-24 opacity-70 pointer-events-none hidden xl:block select-none z-0"
@@ -220,5 +222,6 @@ export default async function HomePage() {
         )}
       </div>
     </div>
+    </Shell>
   );
 }

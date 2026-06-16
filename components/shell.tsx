@@ -1,40 +1,25 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Logo } from "@/components/brand";
+import { requireAuth } from "@/lib/auth";
+import { Logo } from "./brand";
 import { SignOutButton } from "./sign-out-button";
 
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
-
-  const { data: roleData } = await supabase.rpc("current_role");
-  const role = (roleData as string | null) ?? null;
-
-  if (!role) {
-    await supabase.auth.signOut();
-    redirect("/login?error=Tu+acceso+ha+sido+revocado.");
-  }
-
-  const isAdmin = role === "admin";
+/**
+ * Server component que envuelve el contenido autenticado de la app:
+ * header con nav + logo, main, footer.
+ * Hace el auth check al renderizar — si no hay sesión, redirige a /login.
+ */
+export async function Shell({ children }: { children: React.ReactNode }) {
+  const { user, isAdmin } = await requireAuth();
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-line backdrop-blur-sm bg-byma-black/60 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 sm:px-10 py-5">
-          <Link
-            href="/"
-            className="flex items-center gap-3 group"
-          >
-            <Logo width={120} className="opacity-95 group-hover:opacity-100 transition-opacity" />
+          <Link href="/" className="flex items-center gap-3 group">
+            <Logo
+              width={120}
+              className="opacity-95 group-hover:opacity-100 transition-opacity"
+            />
             <span className="hidden sm:inline text-xs uppercase tracking-[0.28em] text-muted border-l border-line pl-3">
               2026
             </span>

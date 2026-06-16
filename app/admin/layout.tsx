@@ -1,17 +1,15 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
+import { Shell } from "@/components/shell";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
-  const { data: isAdmin } = await supabase.rpc("is_admin");
-  if (!isAdmin) redirect("/");
+  await requireAdmin();
   return (
-    <>
+    <Shell>
       <div className="border-b border-line bg-byma-black/40">
         <div className="max-w-6xl mx-auto px-6 sm:px-10 py-3 flex items-center gap-6 text-xs uppercase tracking-[0.22em] overflow-x-auto">
           <span className="text-accent shrink-0">Comité</span>
@@ -37,6 +35,6 @@ export default async function AdminLayout({
         </div>
       </div>
       {children}
-    </>
+    </Shell>
   );
 }
