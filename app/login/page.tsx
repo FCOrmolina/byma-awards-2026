@@ -36,22 +36,11 @@ export default async function LoginPage({
 
       {/* Columna derecha: form */}
       <div className="flex flex-col justify-center px-8 sm:px-16 py-16 max-w-xl w-full mx-auto">
-        <div className="lg:hidden mb-10">
-          <Logo width={150} />
-          <div className="mt-4 h-px w-24 bg-accent" />
-        </div>
-
-        <p className="text-xs uppercase tracking-[0.32em] text-accent mb-5">
-          Acceso comité · votantes
-        </p>
-        <h1 className="font-display text-4xl sm:text-5xl leading-[1.02] mb-4 tracking-[-0.025em]">
-          Entra a BYMA{" "}
-          <span className="text-accent">2026</span>
+        <h1 className="font-display text-3xl sm:text-4xl leading-tight mb-12 flex items-center gap-x-4 gap-y-2 flex-wrap tracking-[-0.025em]">
+          <span>Acceso</span>
+          <Logo width={130} className="inline-block translate-y-[2px]" />
+          <span>Edición 2026</span>
         </h1>
-        <p className="text-foreground/70 mb-10 leading-relaxed max-w-md">
-          Solo participantes invitados. Escribe tu correo y te enviaremos un
-          código de 6 dígitos para entrar — sin contraseña.
-        </p>
         <LoginForm next={next} />
         <p className="mt-12 text-xs text-muted leading-relaxed">
           ¿No te llegó el código? Revisa la carpeta de spam o escríbenos a{" "}
