@@ -52,6 +52,27 @@ export default async function LoginPage({
           </a>
           .
         </p>
+        <div className="mt-10 pt-6 border-t border-line/60 flex items-center gap-3">
+          <span className="text-[0.65rem] uppercase tracking-[0.28em] text-muted/80">
+            Un <em className="italic text-foreground/80 font-medium">momento memorable</em> de
+          </span>
+          <a
+            href="https://fcogroup.mx"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="FCO Group"
+            className="opacity-70 hover:opacity-100 transition-opacity"
+          >
+            <img
+              src="https://galery-fco.sfo3.digitaloceanspaces.com/wp-content/uploads/2025/01/29181023/Logos-FCO-27.png"
+              alt="FCO Group"
+              width={72}
+              height={24}
+              className="h-6 w-auto"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
+          </a>
+        </div>
       </div>
     </main>
   );

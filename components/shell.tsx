@@ -57,6 +57,29 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           </span>
           <span className="font-mono">nominaciones.byma.mx</span>
         </div>
+        <div className="border-t border-line/60">
+          <div className="max-w-7xl mx-auto px-6 sm:px-10 py-6 flex flex-wrap items-center justify-center sm:justify-end gap-3">
+            <span className="text-[0.65rem] uppercase tracking-[0.28em] text-muted/80">
+              Un <em className="italic text-foreground/80 font-medium">momento memorable</em> de
+            </span>
+            <a
+              href="https://fcogroup.mx"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="FCO Group"
+              className="opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <img
+                src="https://galery-fco.sfo3.digitaloceanspaces.com/wp-content/uploads/2025/01/29181023/Logos-FCO-27.png"
+                alt="FCO Group"
+                width={72}
+                height={24}
+                className="h-6 w-auto"
+                style={{ filter: "brightness(0) invert(1)" }}
+              />
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );
