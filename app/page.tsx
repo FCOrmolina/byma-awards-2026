@@ -49,11 +49,43 @@ export default async function HomePage() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 py-12 sm:py-20">
         <section className="mb-20 sm:mb-28 max-w-5xl">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="h-px w-10 bg-accent" />
-            <p className="text-xs uppercase tracking-[0.32em] text-accent">
-              Edición 2026 · Ronda abierta · 26.08.26
-            </p>
+          <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="h-px w-10 bg-accent" />
+              <p className="text-xs uppercase tracking-[0.32em] text-accent">
+                Edición 2026 · Ronda abierta · 26.08.26
+              </p>
+            </div>
+            <a
+              href="https://www.instagram.com/byma.media/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 border border-line hover:border-accent hover:text-accent transition-colors text-[0.65rem] uppercase tracking-[0.22em] text-foreground/80 group"
+              aria-label="Síguenos en Instagram en byma.media"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" y1="6.5" x2="17.5" y2="6.5" />
+              </svg>
+              <span>@byma.media</span>
+              <span
+                aria-hidden
+                className="transition-transform group-hover:translate-x-0.5"
+              >
+                ↗
+              </span>
+            </a>
           </div>
 
           <h1 className="font-display text-5xl sm:text-6xl lg:text-[5.5rem] leading-[0.95] tracking-[-0.03em]">
