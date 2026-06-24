@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { InviteForm } from "./invite-form";
 import { RemoveButton } from "./remove-button";
+import { CategoryAccessEditor } from "./category-access-editor";
+import type { Bucket } from "@/lib/categories";
 
 type AdminUser = {
   email: string;
@@ -10,7 +12,15 @@ type AdminUser = {
   user_id: string | null;
   proposal_count: number;
   categories_covered: number;
+  assigned_categories: number | null;
   last_active: string | null;
+};
+
+type CategoryLite = {
+  id: string;
+  name: string;
+  bucket: Bucket;
+  sort_order: number;
 };
 
 const TOTAL_CATEGORIES = 28;
@@ -18,7 +28,13 @@ const TOTAL_CATEGORIES = 28;
 export default async function UsersAdminPage() {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase.rpc("admin_list_users");
+  const [{ data, error }, { data: catData }] = await Promise.all([
+    supabase.rpc("admin_list_users"),
+    supabase
+      .from("categories")
+      .select("id, name, bucket, sort_order")
+      .order("sort_order"),
+  ]);
 
   if (error) {
     return (
@@ -33,6 +49,7 @@ export default async function UsersAdminPage() {
   }
 
   const users = (data ?? []) as AdminUser[];
+  const allCategories = (catData ?? []) as CategoryLite[];
   const voters = users.filter((u) => u.role === "voter");
   const admins = users.filter((u) => u.role === "admin");
   const activeVoters = voters.filter((u) => u.proposal_count > 0).length;
@@ -100,12 +117,14 @@ export default async function UsersAdminPage() {
         subtitle={`${admins.length} ${admins.length === 1 ? "persona" : "personas"}`}
         users={admins}
         totalCategories={TOTAL_CATEGORIES}
+        allCategories={allCategories}
       />
       <UserSection
         title="Votantes"
         subtitle={`${activeVoters} activos · ${voters.length - activeVoters} sin entrar`}
         users={voters}
         totalCategories={TOTAL_CATEGORIES}
+        allCategories={allCategories}
       />
     </div>
   );
@@ -116,11 +135,13 @@ function UserSection({
   subtitle,
   users,
   totalCategories,
+  allCategories,
 }: {
   title: string;
   subtitle: string;
   users: AdminUser[];
   totalCategories: number;
+  allCategories: CategoryLite[];
 }) {
   return (
     <section className="mb-12">
@@ -228,6 +249,13 @@ function UserSection({
                         </span>
                       )}
                     </div>
+
+                    <CategoryAccessEditor
+                      email={u.email}
+                      totalCategories={totalCategories}
+                      assignedCount={u.assigned_categories ?? null}
+                      allCategories={allCategories}
+                    />
                   </>
                 )}
               </li>
