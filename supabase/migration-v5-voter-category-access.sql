@@ -160,6 +160,8 @@ grant execute on function public.admin_set_voter_categories(text, uuid[]) to aut
 
 -- ─── 5. Actualiza admin_list_users con conteo de categorías asignadas ───────
 -- assigned_categories: NULL = ve todas; número = cuántas le asignaron.
+-- Necesario DROP porque cambia el return type.
+drop function if exists public.admin_list_users();
 create or replace function public.admin_list_users()
 returns table (
   email text,
