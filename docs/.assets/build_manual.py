@@ -14,6 +14,8 @@ from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas as rl_canvas
+from reportlab.graphics import renderPDF
+from svglib.svglib import svg2rlg
 
 
 # ─── PALETTE ──────────────────────────────────────────────────────────────────
@@ -24,7 +26,6 @@ BLUE    = HexColor("#025c98")
 RED     = HexColor("#921426")
 
 def cream_alpha(a):
-    """Cream at given alpha (0–1) as a Color."""
     return Color(0xef/255, 0xd9/255, 0xc6/255, alpha=a)
 
 CREAM_12 = cream_alpha(0.12)
@@ -32,10 +33,7 @@ CREAM_30 = cream_alpha(0.30)
 CREAM_55 = cream_alpha(0.55)
 CREAM_75 = cream_alpha(0.75)
 CREAM_85 = cream_alpha(0.85)
-ORANGE_25 = Color(0xdc/255, 0x6e/255, 0x00/255, alpha=0.25)
-ORANGE_18 = Color(0xdc/255, 0x6e/255, 0x00/255, alpha=0.18)
 ORANGE_10 = Color(0xdc/255, 0x6e/255, 0x00/255, alpha=0.10)
-BLUE_25   = Color(0x02/255, 0x5c/255, 0x98/255, alpha=0.25)
 BLUE_10   = Color(0x02/255, 0x5c/255, 0x98/255, alpha=0.10)
 
 
@@ -47,33 +45,41 @@ pdfmetrics.registerFont(TTFont("Onest-Sb",  str(HERE / "Onest-SemiBold.ttf")))
 pdfmetrics.registerFont(TTFont("Onest-Bd",  str(HERE / "Onest-Bold.ttf")))
 
 
+# ─── ASSETS ───────────────────────────────────────────────────────────────────
+LOGO_BYMA_SVG  = HERE / "logo-byma-on-dark.svg"   # cls-3 dark→cream
+FCO_LOGO_PNG   = HERE / "fco-logo-cream.png"      # baked cream-on-transparent
+BG_COVER       = HERE / "bg-crema.png"            # platillos · 16% opacity
+BG_CLOSE       = HERE / "bg-naranja.png"          # closing page texture
+
+
 # ─── GEOMETRY ─────────────────────────────────────────────────────────────────
 PAGE_W, PAGE_H = LETTER       # 612 x 792 pt
-MARGIN_X = 0.85 * inch        # ~61pt
+MARGIN_X = 0.85 * inch
 MARGIN_T = 0.85 * inch
 MARGIN_B = 0.80 * inch
 COL_X = MARGIN_X
 COL_W = PAGE_W - 2 * MARGIN_X
 
-# Staff (the through-line motif): five thin horizontal lines, set low on the page,
-# acting as a subtle musical staff that keeps time across every movement.
-STAFF_Y_TOP    = 1.65 * inch  # uppermost line
-STAFF_GAP      = 0.085 * inch # interval between lines (~6pt)
-STAFF_LINES    = 5
+STAFF_Y_TOP = 1.65 * inch
+STAFF_GAP   = 0.085 * inch
+STAFF_LINES = 5
 
 
 # ─── PRIMITIVES ───────────────────────────────────────────────────────────────
-def tracked(c: rl_canvas.Canvas, text: str, x, y, *, font, size, color, tracking_em: float):
-    """Draw text with manual letter-spacing in em units."""
+def tracked(c, text, x, y, *, font, size, color, tracking_em):
     c.setFont(font, size)
     c.setFillColor(color)
-    char_space = size * tracking_em
-    c.drawString(x, y, text, charSpace=char_space)
-    return pdfmetrics.stringWidth(text, font, size) + char_space * max(len(text) - 1, 0)
+    cs = size * tracking_em
+    c.drawString(x, y, text, charSpace=cs)
+    return pdfmetrics.stringWidth(text, font, size) + cs * max(len(text) - 1, 0)
+
+
+def text_width(text, font, size, tracking_em=0):
+    cs = size * tracking_em
+    return pdfmetrics.stringWidth(text, font, size) + cs * max(len(text) - 1, 0)
 
 
 def eyebrow(c, text, x, y, *, color=ORANGE, rule_w=40, gap=10, size=7.5, tracking_em=0.30):
-    """Tiny orange rule + tracked uppercase label. The conductor's downbeat."""
     c.setStrokeColor(color)
     c.setLineWidth(0.9)
     c.line(x, y + 2.5, x + rule_w, y + 2.5)
@@ -82,13 +88,11 @@ def eyebrow(c, text, x, y, *, color=ORANGE, rule_w=40, gap=10, size=7.5, trackin
 
 
 def display_headline(c, text, x, y, *, size=46, color=CREAM, tight=-0.030):
-    """Set the headline with cinched tracking — architectural type."""
     tracked(c, text, x, y, font="Onest-Sb", size=size, color=color, tracking_em=tight)
 
 
 def body(c, text, x, y, *, size=10.5, color=CREAM_85, leading=15.5, max_width=None,
          font="Onest"):
-    """Wrap and draw a body block. Returns the final baseline y."""
     c.setFillColor(color)
     if max_width is None:
         max_width = COL_W
@@ -117,49 +121,42 @@ def small_caps_meta(c, text, x, y, *, color=CREAM_30, size=6.6, tracking_em=0.28
 
 
 def page_number(c, n):
-    """Mono-style folio: '/ 03 — VI'  — printed bottom-right above the colophon."""
     label = f"/ {n:02d} — VI"
-    small_caps_meta(c, label, PAGE_W - MARGIN_X - pdfmetrics.stringWidth(
-        label.upper(), "Onest-Md", 6.6) * 1.28, MARGIN_B - 28,
-        color=CREAM_55)
+    w = text_width(label.upper(), "Onest-Md", 6.6, 0.28)
+    small_caps_meta(c, label, PAGE_W - MARGIN_X - w, MARGIN_B - 28, color=CREAM_55)
 
 
-def colophon(c, page_no: int, show_brand=True):
-    """Footer that recurs on every page. Anchors the bottom of the score."""
+def colophon(c, page_no: int):
+    """Standard footer for inner pages."""
     y = MARGIN_B - 14
-    if show_brand:
-        cs = 6.6 * 0.28
-        # Left: "Un momento memorable de FCO Group"
-        c.setFillColor(CREAM_55)
-        c.setFont("Onest-Md", 6.6)
-        left = "UN  "
-        c.drawString(MARGIN_X, y, left, charSpace=cs)
-        adv = pdfmetrics.stringWidth(left, "Onest-Md", 6.6) + cs * (len(left) - 1)
+    cs = 6.6 * 0.28
+    c.setFillColor(CREAM_55)
+    c.setFont("Onest-Md", 6.6)
+    left = "UN  "
+    c.drawString(MARGIN_X, y, left, charSpace=cs)
+    adv = text_width(left, "Onest-Md", 6.6, 0.28)
 
-        c.setFillColor(CREAM_85)
-        c.setFont("Onest-Sb", 6.6)
-        emph = "MOMENTO MEMORABLE  "
-        c.drawString(MARGIN_X + adv, y, emph, charSpace=cs)
-        adv += pdfmetrics.stringWidth(emph, "Onest-Sb", 6.6) + cs * (len(emph) - 1)
+    c.setFillColor(CREAM_85)
+    c.setFont("Onest-Sb", 6.6)
+    emph = "MOMENTO MEMORABLE  "
+    c.drawString(MARGIN_X + adv, y, emph, charSpace=cs)
+    adv += text_width(emph, "Onest-Sb", 6.6, 0.28)
 
-        c.setFillColor(CREAM_55)
-        c.setFont("Onest-Md", 6.6)
-        tail = "DE FCO GROUP"
-        c.drawString(MARGIN_X + adv, y, tail, charSpace=cs)
+    c.setFillColor(CREAM_55)
+    c.setFont("Onest-Md", 6.6)
+    tail = "DE FCO GROUP"
+    c.drawString(MARGIN_X + adv, y, tail, charSpace=cs)
 
-        # Right: edition + url
-        right = "EDICIÓN 2026  ·  NOMINACIONES.BYMA.MX"
-        c.setFont("Onest-Md", 6.6)
-        rw = pdfmetrics.stringWidth(right, "Onest-Md", 6.6) + cs * (len(right) - 1)
-        c.setFillColor(CREAM_55)
-        c.drawString(PAGE_W - MARGIN_X - rw, y, right, charSpace=cs)
+    right = "EDICIÓN 2026  ·  NOMINACIONES.BYMA.MX"
+    c.setFont("Onest-Md", 6.6)
+    rw = text_width(right, "Onest-Md", 6.6, 0.28)
+    c.setFillColor(CREAM_55)
+    c.drawString(PAGE_W - MARGIN_X - rw, y, right, charSpace=cs)
     page_number(c, page_no)
 
 
 def draw_staff(c, *, y_top=STAFF_Y_TOP, lines=STAFF_LINES, gap=STAFF_GAP,
                marks=None, mark_color=None):
-    """The signature device. Five hair-thin cream lines, like a musical staff.
-    Optional dots ('marks') sit on the staff at given (x_inch, line_index) pairs."""
     c.setStrokeColor(CREAM_12)
     c.setLineWidth(0.4)
     for i in range(lines):
@@ -173,17 +170,46 @@ def draw_staff(c, *, y_top=STAFF_Y_TOP, lines=STAFF_LINES, gap=STAFF_GAP,
             c.circle(x_pt, y, r, stroke=0, fill=1)
 
 
-def background(c):
+def background(c, *, bg_image=None, bg_y=None, bg_h=None):
+    """Solid black field + optional low-opacity art behind."""
     c.setFillColor(BLACK)
     c.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1)
+    if bg_image and bg_image.exists():
+        h = bg_h if bg_h else PAGE_H * 0.55
+        y = bg_y if bg_y is not None else (PAGE_H - h) / 2
+        c.drawImage(str(bg_image), 0, y, PAGE_W, h, mask='auto',
+                    preserveAspectRatio=True, anchor='c')
+
+
+def draw_svg(c, svg_path: Path, x, y, target_w):
+    """Embed a vector SVG at given top-left, scaled to target_w. Returns final h."""
+    drawing = svg2rlg(str(svg_path))
+    scale = target_w / drawing.width
+    drawing.width *= scale
+    drawing.height *= scale
+    drawing.scale(scale, scale)
+    renderPDF.draw(drawing, c, x, y)
+    return drawing.height
+
+
+def draw_png(c, png_path: Path, x, y, target_w, target_h=None):
+    """Embed a PNG, preserving aspect if target_h omitted."""
+    from PIL import Image as _Image
+    if target_h is None:
+        with _Image.open(png_path) as im:
+            ratio = im.height / im.width
+        target_h = target_w * ratio
+    c.drawImage(str(png_path), x, y, target_w, target_h, mask='auto',
+                preserveAspectRatio=True, anchor='sw')
+    return target_h
 
 
 # ─── PAGE 1 · COVER ───────────────────────────────────────────────────────────
 def page_cover(c):
-    background(c)
+    background(c, bg_image=BG_COVER, bg_y=0, bg_h=PAGE_H)
 
-    # Staff: subtle, anchored low. A few marks like notes resting on a phrase.
-    draw_staff(c, y_top=PAGE_H * 0.36,
+    # Staff with a few scattered notes — sits well above the bottom block.
+    draw_staff(c, y_top=PAGE_H * 0.42,
                marks=[
                    (MARGIN_X + 0.6 * inch, 1, 1.8),
                    (MARGIN_X + 1.8 * inch, 0, 1.2),
@@ -196,39 +222,70 @@ def page_cover(c):
     eyebrow(c, "Edición 2026 · Manual del votante",
             MARGIN_X, PAGE_H - MARGIN_T - 6, color=ORANGE)
 
-    # Display headline — set very large, centered on a slow vertical rhythm.
-    y_head = PAGE_H - MARGIN_T - 90
-    display_headline(c, "Más allá",       MARGIN_X, y_head,           size=80, color=CREAM, tight=-0.035)
-    display_headline(c, "del sonido.",    MARGIN_X, y_head - 78,      size=80, color=ORANGE, tight=-0.035)
+    # BYMA logo — the title. Set large, hung from the upper third.
+    logo_w = PAGE_W - 2 * MARGIN_X
+    # Aspect: 1558:433  →  height = logo_w * 433/1558
+    logo_h = logo_w * 433 / 1558
+    logo_y = PAGE_H - MARGIN_T - 60 - logo_h - 8  # baseline below eyebrow
+    draw_svg(c, LOGO_BYMA_SVG, MARGIN_X, logo_y, logo_w)
 
-    # Subtitle — long, generous leading, narrow column.
-    sub_y = y_head - 78 - 64
+    # Subtitle — restrained, below the logo.
+    sub_y = logo_y - 36
     body(c, "Guía rápida para registrar a tus nominados en "
             "nominaciones.byma.mx. Seis movimientos. Lee con calma.",
-         MARGIN_X, sub_y, size=12.5, color=CREAM_85, leading=20,
-         max_width=COL_W * 0.65, font="Onest")
+         MARGIN_X, sub_y, size=12, color=CREAM_85, leading=20,
+         max_width=COL_W * 0.62, font="Onest")
 
-    # Lower-half metadata — set as a horizontal rule of small caps.
-    rule_y = MARGIN_B + 56
-    c.setStrokeColor(CREAM_12)
-    c.setLineWidth(0.5)
-    c.line(MARGIN_X, rule_y, PAGE_W - MARGIN_X, rule_y)
+    # ─ Bottom block ────────────────────────────────────────────────────────────
+    # Centered: SAVE THE DATE / 26.08.26 / Un momento memorable de [FCO logo]
+    cx = PAGE_W / 2
+    block_top = MARGIN_B + 96
 
-    # Three columns of metadata
-    cols = [
-        ("OBRA",          "Beyond Music Awards"),
-        ("SAVE THE DATE", "26.08.26"),
-        ("DESTINATARIO",  "Votante invitado"),
-    ]
-    col_w = COL_W / 3
-    for i, (label, value) in enumerate(cols):
-        x = MARGIN_X + i * col_w
-        small_caps_meta(c, label, x, rule_y - 16, color=CREAM_55)
-        c.setFillColor(CREAM)
-        c.setFont("Onest-Md", 11.5)
-        c.drawString(x, rule_y - 32, value)
+    # SAVE THE DATE — wide tracking, small
+    label = "Save the date"
+    tw = text_width(label.upper(), "Onest-Md", 9, 0.42)
+    tracked(c, label.upper(), cx - tw / 2, block_top, font="Onest-Md", size=9,
+            color=CREAM_55, tracking_em=0.42)
 
-    colophon(c, 1, show_brand=True)
+    # 26.08.26 — display, large
+    date = "26.08.26"
+    dw = text_width(date, "Onest-Sb", 44, -0.020)
+    display_headline(c, date, cx - dw / 2, block_top - 52, size=44, color=ORANGE, tight=-0.020)
+
+    # "Un momento memorable de [FCO logo]"
+    line_y = block_top - 92
+    txt_left = "UN  "
+    txt_emph = "MOMENTO MEMORABLE  "
+    txt_de   = "DE "
+    sz = 10
+    cs = sz * 0.28
+    tw_total = (
+        text_width(txt_left, "Onest-Md", sz, 0.28) +
+        text_width(txt_emph, "Onest-Sb", sz, 0.28) +
+        text_width(txt_de,   "Onest-Md", sz, 0.28) +
+        80  # space for FCO logo
+    )
+    start_x = cx - tw_total / 2
+
+    c.setFillColor(CREAM_55)
+    c.setFont("Onest-Md", sz)
+    c.drawString(start_x, line_y, txt_left, charSpace=cs)
+    start_x += text_width(txt_left, "Onest-Md", sz, 0.28)
+
+    c.setFillColor(CREAM_85)
+    c.setFont("Onest-Sb", sz)
+    c.drawString(start_x, line_y, txt_emph, charSpace=cs)
+    start_x += text_width(txt_emph, "Onest-Sb", sz, 0.28)
+
+    c.setFillColor(CREAM_55)
+    c.setFont("Onest-Md", sz)
+    c.drawString(start_x, line_y, txt_de, charSpace=cs)
+    start_x += text_width(txt_de, "Onest-Md", sz, 0.28)
+
+    # FCO logo — inline at this baseline.
+    fco_h = 26
+    fco_w = fco_h * 433 / 157
+    draw_png(c, FCO_LOGO_PNG, start_x + 2, line_y - fco_h * 0.35, fco_w, fco_h)
 
 
 # ─── PAGE 2 · ACCESO ──────────────────────────────────────────────────────────
@@ -236,14 +293,11 @@ def page_acceso(c):
     background(c)
     draw_staff(c, marks=[(MARGIN_X + 0.5 * inch, 2, 2.2)])
 
-    # Chapter numeral — outside the column.
-
     eyebrow(c, "01 · Acceso", MARGIN_X, PAGE_H - MARGIN_T - 6)
 
     display_headline(c, "Solo necesitas", MARGIN_X, PAGE_H - MARGIN_T - 60, size=44)
     display_headline(c, "tu correo.",     MARGIN_X, PAGE_H - MARGIN_T - 60 - 50, size=44, color=ORANGE)
 
-    # Four steps — numbered, each with hair-rule on the left.
     steps = [
         ("Entra a nominaciones.byma.mx",
          "Desde cualquier navegador moderno, en computadora o teléfono."),
@@ -256,24 +310,19 @@ def page_acceso(c):
     ]
     y = PAGE_H - MARGIN_T - 60 - 50 - 80
     for i, (head, sub) in enumerate(steps, start=1):
-        # number gutter
         c.setFillColor(CREAM_55)
         c.setFont("Onest-Md", 8)
         c.drawString(MARGIN_X, y, f"{i:02d}", charSpace=8 * 0.25)
-        # head
         c.setFillColor(CREAM)
         c.setFont("Onest-Sb", 12.5)
         c.drawString(MARGIN_X + 36, y, head)
-        # sub
         body(c, sub, MARGIN_X + 36, y - 16, size=10, color=CREAM_55,
              leading=14, max_width=COL_W - 36 - 1.6 * inch)
-        # divider
         c.setStrokeColor(CREAM_12)
         c.setLineWidth(0.4)
         c.line(MARGIN_X, y - 44, PAGE_W - MARGIN_X, y - 44)
         y -= 64
 
-    # Tip box — left orange rule, cream label, cream body
     tip_x, tip_y = MARGIN_X, MARGIN_B + 78
     tip_w, tip_h = COL_W, 56
     c.setFillColor(ORANGE_10)
@@ -307,10 +356,9 @@ def page_dashboard(c):
                    MARGIN_X, intro_y, size=11, color=CREAM_85, leading=16,
                    max_width=COL_W * 0.78)
 
-    # List of four points — numbered with thin orange marker.
     points = [
         ("Tus categorías asignadas",
-         "Pueden ser las 28 o solo un subconjunto. Lo define el comité según tu perfil."),
+         "Las define el comité según tu perfil."),
         ("Un contador de avance",
          "Arriba del panel: cuántas categorías llevas completadas."),
         ("Selector horizontal por bucket",
@@ -329,7 +377,6 @@ def page_dashboard(c):
              leading=13.5, max_width=COL_W * 0.78)
         y -= 42
 
-    # Mockup: three category cards.
     mock_y = MARGIN_B + 96
     card_w = (COL_W - 24) / 3
     card_h = 110
@@ -353,8 +400,7 @@ def page_dashboard(c):
         c.setFont("Onest-Sb", 12)
         c.drawString(x + 12, mock_y + card_h - 38, titles[i])
 
-        # Status pill
-        label, color, _kicker = states[i]
+        label, color, _ = states[i]
         cs = 6.6 * 0.26
         c.setFont("Onest-Md", 6.6)
         pill_w = pdfmetrics.stringWidth(label, "Onest-Md", 6.6) + cs * (len(label) - 1) + 12
@@ -364,7 +410,6 @@ def page_dashboard(c):
         c.setFillColor(color)
         c.drawString(x + 18, mock_y + 18.4, label, charSpace=cs)
 
-    # Mockup caption
     small_caps_meta(c, "Visual aproximado — la realidad es más fina.",
                     MARGIN_X, mock_y - 14, color=CREAM_30)
 
@@ -388,11 +433,9 @@ def page_propuestas(c):
                    MARGIN_X, intro_y, size=11, color=CREAM_85, leading=16,
                    max_width=COL_W * 0.78)
 
-    # Slot diagram — five vertical markers
     slot_y = intro_y - 32
     slot_size = 30
     slot_gap = 8
-    total_w = 5 * slot_size + 4 * slot_gap
     sx = MARGIN_X
     for i in range(5):
         x = sx + i * (slot_size + slot_gap)
@@ -411,9 +454,7 @@ def page_propuestas(c):
         nw = pdfmetrics.stringWidth(n, "Onest-Sb", 13)
         c.drawString(x + (slot_size - nw) / 2, slot_y - slot_size / 2 - 4, n)
 
-    # Brackets / labels under slots
     bracket_y = slot_y - slot_size - 8
-    # Required bracket spans 0..3
     req_x0 = sx
     req_x1 = sx + 3 * slot_size + 2 * slot_gap
     c.setStrokeColor(CREAM_55)
@@ -430,7 +471,6 @@ def page_propuestas(c):
     c.line(opt_x1, bracket_y, opt_x1, bracket_y + 3)
     small_caps_meta(c, "Opcionales", opt_x0, bracket_y - 12, color=CREAM_30)
 
-    # Fields description
     fields_y = bracket_y - 44
     small_caps_meta(c, "Cada espacio pide", MARGIN_X, fields_y, color=CREAM_55)
 
@@ -450,7 +490,6 @@ def page_propuestas(c):
          MARGIN_X, fields_y - 14, size=10, color=CREAM_55, leading=14,
          max_width=COL_W * 0.78)
 
-    # Pull-quote
     pq_y = MARGIN_B + 96
     c.setStrokeColor(ORANGE)
     c.setLineWidth(1.2)
@@ -493,7 +532,6 @@ def page_gestion(c):
              leading=14.5, max_width=COL_W * 0.78)
         y -= 56
 
-    # Support box — blue rule
     box_x, box_y = MARGIN_X, MARGIN_B + 80
     box_w, box_h = COL_W, 78
     c.setFillColor(BLUE_10)
@@ -526,62 +564,46 @@ def page_agenda(c):
 
     display_headline(c, "Lo que viene.", MARGIN_X, PAGE_H - MARGIN_T - 70, size=56, color=CREAM)
 
-    # Timeline — three milestones along a single thin rule
-    tl_y = PAGE_H * 0.50
-    tl_x0 = MARGIN_X
-    tl_x1 = PAGE_W - MARGIN_X
+    # Vertical timeline — 4 milestones, more breathing room than horizontal.
+    tl_y_top = PAGE_H * 0.70
+    tl_x = MARGIN_X + 18
+    spacing = 78
     c.setStrokeColor(CREAM_30)
     c.setLineWidth(0.6)
-    c.line(tl_x0, tl_y, tl_x1, tl_y)
+    c.line(tl_x, tl_y_top + 6, tl_x, tl_y_top - spacing * 3 - 6)
 
     milestones = [
-        (0.00, "AHORA",          "Ronda abierta",     "Propones tus nominados.",    CREAM),
-        (0.50, "DESPUÉS",        "Cierre de ronda",   "Fecha por confirmar.",        CREAM),
-        (1.00, "SAVE THE DATE",  "26.08.26",          "Beyond Music Awards.",        ORANGE),
+        ("Inicio de postulaciones",       "26 de junio",   CREAM,  False),
+        ("Cierre del sistema de postulaciones", "06 de julio",   CREAM,  False),
+        ("Anuncio de nominados",          "15 de agosto",  CREAM,  False),
+        ("Beyond Music Awards",           "26 de agosto",  ORANGE, True),
     ]
-    for frac, kicker, head, sub, color in milestones:
-        x = tl_x0 + frac * (tl_x1 - tl_x0)
-        c.setFillColor(color)
-        c.circle(x, tl_y, 4.5, stroke=0, fill=1)
-        # Tick down
-        c.setStrokeColor(color)
-        c.setLineWidth(0.6)
-        c.line(x, tl_y - 5, x, tl_y - 14)
-
-        # Anchor x: edges align to start/end; middle is centered
-        anchor = "start" if frac == 0 else ("end" if frac == 1 else "middle")
-        # Kicker
-        kw = pdfmetrics.stringWidth(kicker, "Onest-Md", 6.6) + 6.6 * 0.28 * (len(kicker) - 1)
-        if anchor == "start":
-            kx = x
-        elif anchor == "end":
-            kx = x - kw
+    for i, (label, date, color, is_event) in enumerate(milestones):
+        y = tl_y_top - i * spacing
+        # Marker dot
+        if is_event:
+            c.setFillColor(color)
+            c.circle(tl_x, y, 6, stroke=0, fill=1)
         else:
-            kx = x - kw / 2
-        small_caps_meta(c, kicker, kx, tl_y - 28, color=color)
-
-        # Head
-        c.setFillColor(CREAM)
+            c.setStrokeColor(color)
+            c.setLineWidth(1.2)
+            c.circle(tl_x, y, 5, stroke=1, fill=0)
+        # Date — eyebrow style next to the dot
+        small_caps_meta(c, date, tl_x + 22, y + 6, color=color, size=7.2)
+        # Label — display, below
+        c.setFillColor(CREAM if not is_event else CREAM)
         c.setFont("Onest-Sb", 17)
-        hw = pdfmetrics.stringWidth(head, "Onest-Sb", 17)
-        if anchor == "start": hx = x
-        elif anchor == "end": hx = x - hw
-        else: hx = x - hw / 2
-        c.drawString(hx, tl_y - 50, head)
+        c.drawString(tl_x + 22, y - 10, label)
 
-        # Sub
-        c.setFillColor(CREAM_55)
-        c.setFont("Onest", 10)
-        sw = pdfmetrics.stringWidth(sub, "Onest", 10)
-        if anchor == "start": sxp = x
-        elif anchor == "end": sxp = x - sw
-        else: sxp = x - sw / 2
-        c.drawString(sxp, tl_y - 66, sub)
-
-    # Closing tagline — set massive across the lower band
-    cl_y = MARGIN_B + 96
-    display_headline(c, "Más allá",     MARGIN_X, cl_y + 50, size=58, color=CREAM, tight=-0.035)
-    display_headline(c, "del sonido.",  MARGIN_X, cl_y,      size=58, color=ORANGE, tight=-0.035)
+        # For the event row, embed the BYMA logo small to the right
+        if is_event:
+            try:
+                logo_w = 130
+                logo_h = logo_w * 433 / 1558
+                draw_svg(c, LOGO_BYMA_SVG, PAGE_W - MARGIN_X - logo_w,
+                         y - logo_h / 2, logo_w)
+            except Exception:
+                pass
 
     colophon(c, 6)
 
